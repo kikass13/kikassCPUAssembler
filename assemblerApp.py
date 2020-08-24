@@ -8,6 +8,10 @@ from assembler.AssemblerChecker import AssemblerChecker
 
 ######################################################################################################################
 
+FONT_DEFAULT = None
+FONT_LABEL = None
+TABULATOR_INDENT_COUNT = 2
+
 class AssemblerGui(object):
     def __init__(self):
         ### create necessary utilities
@@ -38,9 +42,10 @@ class AssemblerGui(object):
 
         ### custom tags for colored text and stuff
         self.code.text.tag_configure("default", font=FONT_DEFAULT)
-        self.code.text.tag_configure("label", font=FONT_LABEL, foreground="green")
+        self.code.text.tag_configure("label", font=FONT_LABEL, foreground="orange")
         self.code.text.tag_configure("address", font=FONT_ADDRESS, background="lightblue")
-        self.code.text.tag_configure("symbol", font=FONT_ADDRESS, foreground="gray")
+        self.code.text.tag_configure("symbol", font=FONT_DEFAULT, foreground="gray")
+        self.code.text.tag_configure("comment", font=FONT_DEFAULT, foreground="green")
 
         ### add default code and add some special color things
         self.code.text.insert("1.0", "#0x0000\n", "address") 
@@ -48,35 +53,38 @@ class AssemblerGui(object):
         ### focus
         self.code.text.focus_set()
 
+        ### side panel
+        self.sidepanel = tk.Frame(self.root)
         ### buttons
-        self.buttonCpuInfo = tk.Button(self.root, text="CPU Info", width=15, height=5, command=self.onCpuInfoClicked)
-        self.buttonLoad = tk.Button(self.root, text="Load", width=15, height=2, command=self.onLoadClicked)
-        self.buttonSave = tk.Button(self.root, text="Save", width=15, height=2, command=self.onSaveClicked)
-        self.buttonCheck = tk.Button(self.root, text="Check", width=15, height=5, command=self.onCheckClicked)
-        self.buttonExport = tk.Button(self.root, text="Export", width=15, height=5, command=self.onExportClicked)
+        self.buttonCpuInfo = tk.Button(self.sidepanel, text="CPU Info", width=15, height=5, command=self.onCpuInfoClicked)
+        self.buttonLoad = tk.Button(self.sidepanel , text="Load", width=15, height=2, command=self.onLoadClicked)
+        self.buttonSave = tk.Button(self.sidepanel , text="Save", width=15, height=2, command=self.onSaveClicked)
+        self.buttonCheck = tk.Button(self.sidepanel , text="Check", width=15, height=5, command=self.onCheckClicked)
+        self.buttonExport = tk.Button(self.sidepanel , text="Export", width=15, height=5, command=self.onExportClicked)
 
         ### create a variable to store options for the radiobuttons
         self.exportMode = tk.IntVar()
         self.exportMode.set(1)
-        self.radiobutton_1 = tk.Radiobutton(self.root, text=".elf", variable=self.exportMode, value=1, anchor="w")
-        self.radiobutton_2 = tk.Radiobutton(self.root, text=".hex", variable=self.exportMode, value=2, anchor="w")
+        self.radiobutton_1 = tk.Radiobutton(self.sidepanel, text=".elf", variable=self.exportMode, value=1, anchor="w")
+        self.radiobutton_2 = tk.Radiobutton(self.sidepanel, text=".hex", variable=self.exportMode, value=2, anchor="w")
 
     def drawViews(self):
 
         tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
-        self.code.pack(side="left", fill="both", expand=True)
+        self.code.pack(fill="both", expand=True, side=tk.LEFT)
 
+        self.sidepanel.pack(fill="both", expand=True, side=tk.RIGHT)
         self.buttonCpuInfo.pack(padx=5, pady=5)
-        tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
+        tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
         self.buttonLoad.pack(padx=5, pady=5)
         self.buttonSave.pack(padx=5, pady=5)
-        tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
+        tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
         self.buttonCheck.pack(padx=5, pady=5)
-        tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
+        tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
         self.buttonExport.pack(padx=5, pady=5)
         self.radiobutton_1.pack(padx=5, pady=5)
         self.radiobutton_2.pack(padx=5, pady=5)
-        tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, anchor="s", padx=5, pady=5)
+        tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
 
     def run(self):
         self.root.mainloop()
@@ -100,14 +108,11 @@ class AssemblerGui(object):
     def onShiftTabPressed(self, event):
         index = self.getCurrentIndex()
         deletedLine = self.deleteLine(index)
-        print(deletedLine)
         spaces = self.getLineIndents(deletedLine)
-        print(spaces)
         if spaces >= 2:
             deletedLine = deletedLine[2:]
         else:
             deletedLine = deletedLine.lstrip(" ")
-        print(deletedLine)
         self.code.text.insert(index, deletedLine)
         #currentIndex = self.getCurrentIndex()
         #currentLine, currentChar = self.getIndexCoordinates(currentIndex)
@@ -132,6 +137,8 @@ class AssemblerGui(object):
                 self.markAddressText(lineKey, lineStartIndex, lineEndIndex)
             elif lineType == AssemblerChecker.LINETYPE.SYMBOLDEF:
                 self.markSymbolDefinitionText(lineKey, lineStartIndex, lineEndIndex)
+            elif lineType == AssemblerChecker.LINETYPE.COMMENT:
+                self.markCommentText(lineKey, lineStartIndex, lineEndIndex)
             ### check others ...
             ###
             ### normal text
@@ -156,9 +163,9 @@ class AssemblerGui(object):
         pre1 = indexStart
         self.code.text.tag_add("address", indexStart, "%s.0" % str(int(currentLine)+1))
     def markSymbolDefinitionText(self, name, indexStart, indexEnd):
-        ### mark text given by indieces as label
         self.code.text.tag_add("symbol", indexStart, indexEnd)
-
+    def markCommentText(self, name, indexStart, indexEnd):
+         self.code.text.tag_add("comment", indexStart, indexEnd)
     def unmarkText(self, text, indexStart, indexEnd):
         currentLine, currentChar = indexStart.split(".")
         #lastLine, lastChar = indexEnd.split(".")

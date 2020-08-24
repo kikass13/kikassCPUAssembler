@@ -59,17 +59,18 @@ class CodeTextWidget(tk.Frame):
         width = kwargs.get("width", 30)
         height = kwargs.get("height", 20)
         self.text = CustomText(self, width=width, height=height)
-        self.vsb = tk.Scrollbar(orient="vertical", command=self.text.yview)
-        self.hsb = tk.Scrollbar(orient="horizontal", command=self.text.xview)
+        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.text.yview)
+        self.hsb = tk.Scrollbar(self, orient="horizontal", command=self.text.xview)
 
         self.text.configure(yscrollcommand=self.vsb.set)
+        self.text.configure(xscrollcommand=self.hsb.set)
         self.linenumbers = TextLineNumbers(self, width=30)
         self.linenumbers.attach(self.text)
 
+        self.linenumbers.pack(side="left", fill="y")
         self.vsb.pack(side="right", fill="y")
         self.hsb.pack(side="bottom", fill="x")
-        self.linenumbers.pack(side="left", fill="y")
-        self.text.pack(side="right", fill="both", expand=True)
+        self.text.pack(side="left", fill="both", expand=True)
 
         ### overwrite paste and copy events because these raise exceptions with
         ### empty selected ctrl+c or non selected text ctrl+v
