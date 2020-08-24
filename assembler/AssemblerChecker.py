@@ -11,12 +11,14 @@ class AssemblerChecker(object):
         LABEL = 2                   ### main:
         ADDRESS = 3                 ### #0x0F0A
         SYMBOLDEF = 4               ### $SYMBOL_NAME = 1
-        #SYMBOLREF = 5               ### ${SYMBOL_NAME}
+        #SYMBOLREF = 5              ### ${SYMBOL_NAME}
+        COMMENT = 10                ### // some comment
 
     checkDict = {
         LINETYPE.LABEL:             lambda self, l: self.isLabel(l),
         LINETYPE.ADDRESS:           lambda self, l: self.isFixedAddress(l),
         LINETYPE.SYMBOLDEF:         lambda self, l: self.isSymbolDefinition(l),
+        LINETYPE.COMMENT:           lambda self, l: self.isComment(l),
     }
 
     def __init__(self):
@@ -80,12 +82,20 @@ class AssemblerChecker(object):
                 symbol = {key : value}
         return symbol
 
+    def isComment(self, line):
+        comment = None
+        strippedLine = line.strip()
+        ### check if current line is a fixed rom address (leading with '#')
+        ### valid input would be #0xAA or #0x0 or #0xF9F9AF
+        if(len(strippedLine) >= 2 and strippedLine[0:2] == "//"):
+            comment = line
+        return comment
 
 ######################################################################################################################
 
 def main():
     checker = AssemblerChecker()
-    codeLines = ["$ABC = 7", "#0xF00A", "main: ", "LDA 7"]
+    codeLines = ["$ABC = 7", "#0xF00A", "main: ", "// I AM SOME COMMENT", "LDA 7"]
     for line in codeLines:
         lineType, lineKey = checker.checkLine(line)
         if lineType == AssemblerChecker.LINETYPE.LABEL:
@@ -94,6 +104,8 @@ def main():
             print("'%s' >>> ADDRESS FOUND >>> %s[%s]" % (line, lineType, lineKey))
         elif lineType == AssemblerChecker.LINETYPE.SYMBOLDEF:
             print("'%s' >>> SYMBOLDEF FOUND >>> %s[%s]" % (line, lineType, lineKey))
+        elif lineType == AssemblerChecker.LINETYPE.COMMENT:
+            print("'%s' >>> COMMENT FOUND >>> %s[%s]" % (line, lineType, lineKey))
         else:
             print("'%s' >>> NORMAL TEXT >>> %s[%s]" % (line, lineType, lineKey))
 
