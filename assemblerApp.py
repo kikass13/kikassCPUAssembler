@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
+import os
+import yaml
+
 import tkinter as tk
 from tkinter.font import Font
+import tkinter.filedialog
 
 from widgets.CodeTextWidget import CodeTextWidget
 from assembler.AssemblerChecker import AssemblerChecker
@@ -11,6 +15,7 @@ from assembler.AssemblerChecker import AssemblerChecker
 FONT_DEFAULT = None
 FONT_LABEL = None
 TABULATOR_INDENT_COUNT = 2
+
 
 class AssemblerGui(object):
     def __init__(self):
@@ -90,11 +95,113 @@ class AssemblerGui(object):
         self.root.mainloop()
 
     def onCpuInfoClicked(self):
-        pass
+        ### load instruction set info
+        currentDir = os.path.dirname(__file__)
+        filename = "instruction_set.yml"
+        path = os.path.join(currentDir, filename)
+        d = None
+        with open(path, 'r') as stream:
+            try:
+                d = yaml.safe_load(stream)
+            except yaml.YAMLError as e:
+                raise e
+        if not d:
+            return
+
+        ### read data and interprete table entries
+        headers = [ "Id", "Opcode", "Command", "Parameters", "Description", "Tasks" ]
+        instructions = d["instructions"]
+        contents = [headers]
+        rows = len(instructions)
+        columns = len(headers)
+        for i in instructions:
+            l = []
+            for k in headers:
+                l.append(i[k])
+            contents.append(l)
+
+        showRows = 10 ### only so much rows will be shown before scrolling is necessary
+
+        ### open popup window
+        win = tk.Toplevel()
+        win.wm_title("CPU Info")
+        rowCount = 0
+        ### contents
+        ### see 
+        ### https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid
+        ### ...
+        frame_main = tk.Frame(win)
+        frame_main.grid(sticky='news')
+
+        label1 = tk.Label(frame_main, text="Instruction Set")
+        label1.grid(row=0, column=0, pady=(5, 0), sticky='nw')
+        #label2 = tk.Label(frame_main, text="Label 2", fg="blue")
+        #label2.grid(row=1, column=0, pady=(5, 0), sticky='nw')
+        #label3 = tk.Label(frame_main, text="Label 3", fg="red")
+        #label3.grid(row=3, column=0, pady=5, sticky='nw')
+
+        # Create a frame for the canvas with non-zero row&column weights
+        frame_canvas = tk.Frame(frame_main)
+        frame_canvas.grid(row=2, column=0, pady=(5, 0), sticky='nw')
+        frame_canvas.grid_rowconfigure(0, weight=1)
+        frame_canvas.grid_columnconfigure(0, weight=1)
+        # Set grid_propagate to False to allow 5-by-5 buttons resizing later
+        frame_canvas.grid_propagate(False)
+
+        # Add a canvas in that frame
+        canvas = tk.Canvas(frame_canvas)
+        canvas.grid(row=0, column=0, sticky="news")
+
+        # Link a scrollbar to the canvas
+        vsb = tk.Scrollbar(frame_canvas, orient="vertical", command=canvas.yview)
+        vsb.grid(row=0, column=1, sticky='ns')
+        canvas.configure(yscrollcommand=vsb.set)
+
+        # Create a frame to contain the buttons
+        frame_buttons = tk.Frame(canvas, bg="blue")
+        canvas.create_window((0, 0), window=frame_buttons, anchor='nw')
+
+        # Add buttons to the frame
+        contentEntries = [[tk.Entry() for j in range(columns)] for i in range(rows)]
+        for i in range(0, rows):
+            for j in range(0, columns):
+                string = contents[i][j]
+                if(i == 0): ### header line
+                    contentEntries[i][j] = tk.Entry(frame_buttons, width=len(string)*3, fg='blue', font=('Arial',10,"bold")) 
+                else:
+                     contentEntries[i][j] = tk.Entry(frame_buttons, fg='black', font=('Arial',8)) 
+                contentEntries[i][j].grid(row=i, column=j, sticky='news')
+                contentEntries[i][j].insert(tk.END, string)
+                contentEntries[i][j].configure(state='readonly')
+        # Update buttons frames idle tasks to let tkinter calculate buttons sizes
+        frame_buttons.update_idletasks()
+
+        # Resize the canvas frame to show exactly n-by-n buttons and the scrollbar
+        show_columns_width = sum([contentEntries[0][j].winfo_width() for j in range(columns)])
+        show_columns_height = sum([contentEntries[i][0].winfo_height() for i in range(showRows)])
+        frame_canvas.config(width=show_columns_width + vsb.winfo_width(),
+                            height=show_columns_height)
+
+        # Set the canvas scrolling region
+        canvas.config(scrollregion=canvas.bbox("all"))
+        ### other stuff
+        b = tk.Button(frame_main, text="Close", bd=6, command=win.destroy)
+        b.grid(row=10, column=0, sticky="we")
+
+
     def onLoadClicked(self):
-        pass
+        path = tkinter.filedialog.askopenfilename(initialdir="\%userprofile\%", filetypes =(("Assembler File", "*.asm"),("All Files","*.*")), title = "Choose a file.")
+        if path:
+            with open(path, 'r') as f:
+                self.code.text.delete(1.0, tk.END)
+                self.code.text.insert(1.0, f.read())
+                self.refreshCode()
     def onSaveClicked(self):
-        pass
+        path = tkinter.filedialog.asksaveasfilename(defaultextension=".asm")
+        if path:
+            code = self.code.text.get(1.0, tk.END)
+            with open(path, 'w') as f:
+                f.write(code)
     def onCheckClicked(self):
         fullText = self.code.text.get("1.0", tk.END)
         success, results = self.checker.checkLines(fullText)
@@ -121,6 +228,24 @@ class AssemblerGui(object):
         #self.code.text.delete( "%s.%s" % (currentLine, targetCharIndex), tk.INSERT) ### indieces have to be reverted when deleting ... example (6.0, 6.2) -.-
         return 'break'
 
+    ### iterate through teh code and yield each and every line one after another
+    def codeLineIterator(self):
+        lastLine = int(self.code.text.index("end").split(".")[0])
+        for lineIndex in range(0, lastLine+1):
+            ### defien inieces
+            startIndex = "%s.0" % lineIndex
+            endIndex = "%s.end" % lineIndex
+            #### grab current
+            line = self.code.text.get(startIndex, endIndex)
+            yield startIndex, endIndex, line
+
+    def refreshCode(self):
+        ### go through all lines of our text widget and re-process each and every line
+        ### so that things get marked and colored properly again
+        for startIndex, endIndex, line in self.codeLineIterator():
+            ### re-process line
+            self.processLine(line, startIndex, endIndex)
+
     def onCodeChanged(self, args):
         #print(args)
         ## allow cahracters and some specific control keys to start the parsign of teh line (to color text and stuff)
@@ -130,27 +255,28 @@ class AssemblerGui(object):
             ### go through current line and check for labels to change their color
             lineStartIndex, lineEndIndex = self.getCurrentLineIndieces()
             line = self.getLineTextBetween(lineStartIndex, lineEndIndex)
-            lineType, lineKey = self.checker.checkLine(line)
-            if lineType == AssemblerChecker.LINETYPE.LABEL:
-                self.markLabelText(lineKey, lineStartIndex, lineEndIndex)
-            elif lineType == AssemblerChecker.LINETYPE.ADDRESS:
-                self.markAddressText(lineKey, lineStartIndex, lineEndIndex)
-            elif lineType == AssemblerChecker.LINETYPE.SYMBOLDEF:
-                self.markSymbolDefinitionText(lineKey, lineStartIndex, lineEndIndex)
-            elif lineType == AssemblerChecker.LINETYPE.COMMENT:
-                self.markCommentText(lineKey, lineStartIndex, lineEndIndex)
-            ### check others ...
-            ###
-            ### normal text
-            else:
-                self.unmarkText(line, lineStartIndex, lineEndIndex)
-
+            lineType, lineKey = self.processLine(line, lineStartIndex, lineEndIndex)
             ### remember indent when going to next line
             if(args.keysym == "Return"):
                 currentLine, currentChar = self.getIndexCoordinates(lineStartIndex)
                 lastLine = self.getPreviousLineText()
                 lastSpaces = self.getLineIndents(lastLine)
                 self.code.text.insert(lineStartIndex, " " * lastSpaces)
+
+    def processLine(self, line, lineStartIndex, lineEndIndex):
+        lineType, lineKey = self.checker.checkLine(line)
+        if lineType == AssemblerChecker.LINETYPE.LABEL:
+            self.markLabelText(lineKey, lineStartIndex, lineEndIndex)
+        elif lineType == AssemblerChecker.LINETYPE.ADDRESS:
+            self.markAddressText(lineKey, lineStartIndex, lineEndIndex)
+        elif lineType == AssemblerChecker.LINETYPE.SYMBOLDEF:
+            self.markSymbolDefinitionText(lineKey, lineStartIndex, lineEndIndex)
+        elif lineType == AssemblerChecker.LINETYPE.COMMENT:
+            self.markCommentText(lineKey, lineStartIndex, lineEndIndex)
+        ### check others ...
+        else:
+            self.unmarkText(line, lineStartIndex, lineEndIndex)
+        return lineType, lineKey
 
     def markLabelText(self, name, indexStart, indexEnd):
         ### mark text given by indieces as label
