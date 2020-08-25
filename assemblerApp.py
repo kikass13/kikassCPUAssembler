@@ -109,8 +109,8 @@ class AssemblerGui(object):
             return
 
         ### read data and interprete table entries
-        headers = [ "Id", "Opcode", "Command", "Parameters", "Description", "Tasks" ]
         instructions = d["instructions"]
+        headers = list(instructions[0].keys()) ### grab first element and get our headers
         contents = [headers]
         rows = len(instructions)
         columns = len(headers)
@@ -204,10 +204,20 @@ class AssemblerGui(object):
                 f.write(code)
     def onCheckClicked(self):
         fullText = self.code.text.get("1.0", tk.END)
-        success, results = self.checker.checkLines(fullText)
+        success, errors, pseudocode = self.checker.checkCode(fullText)
+        print(success)
+        print(errors)
+        print("================")
+        print(pseudocode)
         ### do stuff with the errors and shit ...
+
     def onExportClicked(self):
-        pass
+        code = self.code.text.get("1.0", tk.END)
+        success, errors, binary, lastWrittenByte = self.checker.assemble(code)
+        print("Assembly Result:")
+        print("  Success: %s" % success)
+        print("  Errors: %s" % errors)
+        print("  ROM: %s" % binary[:lastWrittenByte])
 
     def onTabPressed(self, event):
         self.code.text.insert(tk.INSERT, " " * TABULATOR_INDENT_COUNT)
