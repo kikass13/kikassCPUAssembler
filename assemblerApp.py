@@ -36,6 +36,7 @@ class AssemblerGui(object):
         self.createViews()
         ### pack stuff
         self.drawViews()
+        self.cachedPath = None
     
     def createViews(self):
         ### creates special fonts for stuff
@@ -52,6 +53,7 @@ class AssemblerGui(object):
         ### change tabulator key 
         self.code.text.bind("<Tab>", self.onTabPressed)
         self.code.text.bind("<Shift-KeyPress-Tab>", self.onShiftTabPressed)
+        self.code.text.bind("<Control-s>", self.onSaveClicked)
 
         ### custom tags for colored text and stuff
         self.code.text.tag_configure("default", font=FONT_DEFAULT)
@@ -59,6 +61,7 @@ class AssemblerGui(object):
         self.code.text.tag_configure("address", font=FONT_ADDRESS, background="lightblue")
         self.code.text.tag_configure("symbol", font=FONT_DEFAULT, foreground="gray")
         self.code.text.tag_configure("comment", font=FONT_DEFAULT, foreground="green")
+        self.code.text.tag_configure("error", font=FONT_DEFAULT, foreground="black", background="red")
 
         ### add default code and add some special color things
         self.code.text.insert("1.0", "#0x0000\n", "address") 
@@ -200,17 +203,27 @@ class AssemblerGui(object):
 
     def onLoadClicked(self):
         path = tkinter.filedialog.askopenfilename(initialdir="\%userprofile\%", filetypes =(("Assembler File", "*.asm"),("All Files","*.*")), title = "Choose a file.")
+        ### ...
         if path:
             with open(path, 'r') as f:
                 self.code.text.delete(1.0, tk.END)
                 self.code.text.insert(1.0, f.read())
                 self.refreshCode()
-    def onSaveClicked(self):
-        path = tkinter.filedialog.asksaveasfilename(defaultextension=".asm")
+            self.cachedPath = path
+
+    def onSaveClicked(self, event=None):
+        ### event is only relevant if we call this method via keypress (for example ctrl+s)
+        if not self.cachedPath:
+            path = tkinter.filedialog.asksaveasfilename(defaultextension=".asm")
+        else:
+            path = self.cachedPath
+        ### ...
         if path:
             code = self.code.text.get(1.0, tk.END)
             with open(path, 'w') as f:
                 f.write(code)
+            self.cachedPath = path
+
     def onCheckClicked(self):
         fullText = self.code.text.get("1.0", tk.END)
         success, errors, pseudocode = self.checker.checkCode(fullText)
@@ -219,6 +232,12 @@ class AssemblerGui(object):
         print("================")
         print(pseudocode)
         ### do stuff with the errors and shit ...
+        for error in errors:
+            lineNumber, lineType, lineKey, code = error
+            startIndex, endIndex = self.getLineIndex(lineNumber)
+            self.markErrorText("", startIndex, endIndex)
+
+
 
     def onExportClicked(self):
         code = self.code.text.get("1.0", tk.END)
@@ -338,7 +357,7 @@ class AssemblerGui(object):
     def markSymbolDefinitionText(self, name, indexStart, indexEnd):
         self.code.text.tag_add("symbol", indexStart, indexEnd)
     def markCommentText(self, name, indexStart, indexEnd):
-         self.code.text.tag_add("comment", indexStart, indexEnd)
+        self.code.text.tag_add("comment", indexStart, indexEnd)
     def unmarkText(self, text, indexStart, indexEnd):
         currentLine, currentChar = indexStart.split(".")
         #lastLine, lastChar = indexEnd.split(".")
@@ -346,7 +365,11 @@ class AssemblerGui(object):
         for tag in self.code.text.tag_names():
             #self.code.text.tag_remove(tag, indexStart, indexEnd)
             self.code.text.tag_remove(tag, indexStart, "%s.0" % str(int(currentLine)+1))
-    
+    def markErrorText(self, text, indexStart, indexEnd):
+        ### remove tags from the line in question
+        self.unmarkText(text,indexStart, indexEnd)
+        ### mark line as error (red backgroudn and stuff)
+        self.code.text.tag_add("error", indexStart, indexEnd)
 
     def getPreviousLineIndieces(self):
         start, end = self.getCurrentLineIndieces()
@@ -361,6 +384,10 @@ class AssemblerGui(object):
         return self.code.text.index("insert")
     def getIndexCoordinates(self, index):
         return index.split(".") # currentLine, currentChar
+    def getLineIndex(self, lineNumber):
+        startIndex = "%s.0" % lineNumber
+        endIndex = "%s.end" % lineNumber
+        return startIndex, endIndex
 
     def getPreviousLineText(self):
         currentLine, currentChar = self.getIndexCoordinates(self.getCurrentIndex())

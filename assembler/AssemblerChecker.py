@@ -110,10 +110,10 @@ class AssemblerChecker(object):
                     lType, lKey = self.checkLine(line)
                     if lType == AssemblerChecker.LINETYPE.UNKNOWN or lKey == None:
                         success = False
-                        errors.append((i, lType, lKey, line))
+                        errors.append((i+1, lType, lKey, line))
                     else:
                         ### append to our pseudo code
-                        pseudocode.append((i, lType, lKey, line))
+                        pseudocode.append((i+1, lType, lKey, line))
         ### return
         return success, errors, pseudocode
 

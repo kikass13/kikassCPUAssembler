@@ -26,4 +26,3 @@ main:
   // we can also use symbols in our code
   LDA ${SYMBOL_1}
 
-
