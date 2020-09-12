@@ -35,7 +35,7 @@ class AssemblerChecker(object):
     }
 
     cmdDict = {
-        "LDA":     {
+        "lda":     {
                     "Id": "3", 
                     "Opcode": "0x0C", 
                     "Args": "1",
@@ -178,7 +178,7 @@ class AssemblerChecker(object):
         code = None
         ### check if current line is a label for code
         stuff = line.split(" ")
-        cmd = stuff[0]
+        cmd = stuff[0].lower()
         args = stuff[1:]
         d = self.cmdDict.get(cmd, None)
         if d:

@@ -17,6 +17,14 @@ FONT_LABEL = None
 TABULATOR_INDENT_COUNT = 2
 
 
+
+exportTypes = {
+    0: ".bin",
+    1: ".ascii",
+    #2: ".elf",
+    #3: ".hex",
+}
+
 class AssemblerGui(object):
     def __init__(self):
         ### create necessary utilities
@@ -69,12 +77,13 @@ class AssemblerGui(object):
 
         ### create a variable to store options for the radiobuttons
         self.exportMode = tk.IntVar()
-        self.exportMode.set(1)
-        self.radiobutton_1 = tk.Radiobutton(self.sidepanel, text=".elf", variable=self.exportMode, value=1, anchor="w")
-        self.radiobutton_2 = tk.Radiobutton(self.sidepanel, text=".hex", variable=self.exportMode, value=2, anchor="w")
+        self.exportMode.set(0)
+        self.radiobuttons = []
+        for v, t in exportTypes.items():
+            rb = tk.Radiobutton(self.sidepanel, text=t, variable=self.exportMode, value=v, anchor="w")
+            self.radiobuttons.append(rb) 
 
     def drawViews(self):
-
         tk.Frame(height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
         self.code.pack(fill="both", expand=True, side=tk.LEFT)
 
@@ -87,8 +96,8 @@ class AssemblerGui(object):
         self.buttonCheck.pack(padx=5, pady=5)
         tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
         self.buttonExport.pack(padx=5, pady=5)
-        self.radiobutton_1.pack(padx=5, pady=5)
-        self.radiobutton_2.pack(padx=5, pady=5)
+        for radioBtn in self.radiobuttons:
+            radioBtn.pack(padx=5, pady=5)
         tk.Frame(self.sidepanel, height=4, bd=4, relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=5)
 
     def run(self):
@@ -218,6 +227,34 @@ class AssemblerGui(object):
         print("  Success: %s" % success)
         print("  Errors: %s" % errors)
         print("  ROM: %s" % binary[:lastWrittenByte])
+
+        exportMode = self.exportMode.get()
+        extension = ""
+
+        extension = exportTypes[exportMode]
+        path = tkinter.filedialog.asksaveasfilename(defaultextension=extension)
+        if path:
+            if exportMode == 0:
+                # Create bytearray from list of integers.
+                byteArr = bytearray(binary)
+                with open(path, "wb") as f:
+                    f.write(byteArr)
+                print("Binary file written [%s bytes]" % len(byteArr))
+            elif exportMode == 1:
+                ### ascii format export
+                with open(path, 'w') as f:
+                    for i, byte in enumerate(binary):
+                        if i > 0 and i % 10 == 0:
+                            f.write("\n")
+                        f.write('%.2X ' % byte)
+                print("Ascii file written [%s bytes]" % len(binary))
+            #elif exportMode == 2:
+            #    print("Export mode %s not supported" % exportMode)
+            #else:
+            #    print("Export mode %s not supported" % exportMode)
+
+            
+
 
     def onTabPressed(self, event):
         self.code.text.insert(tk.INSERT, " " * TABULATOR_INDENT_COUNT)
