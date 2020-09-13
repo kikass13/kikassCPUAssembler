@@ -6,6 +6,7 @@ from enum import Enum
 
 
 BINARY_ROM_MAX_SIZE = 0xFFFF
+DEFAULT_ROM = lambda: [0] * BINARY_ROM_MAX_SIZE
 
 class AssemblerChecker(object):
     class LINETYPE(Enum):
@@ -42,7 +43,15 @@ class AssemblerChecker(object):
                     "Parameters": "<const int>",
                     "Description": "",
                     "Tasks": "",
-                }
+                },
+        "jmp":     {
+                    "Id": "200", 
+                    "Opcode": "0xF0", 
+                    "Args": "1",
+                    "Parameters": "<address>",
+                    "Description": "Jump to <address>",
+                    "Tasks": "PC = <address>",
+                },
     }
 
     def __init__(self):
@@ -51,7 +60,7 @@ class AssemblerChecker(object):
     def assemble(self, text):
         success = True
         errors = []
-        binary = [0] * BINARY_ROM_MAX_SIZE
+        binary = DEFAULT_ROM()
 
         ### first repeat the check
         codeOk, results, pseudocode = self.checkCode(text)
@@ -59,16 +68,21 @@ class AssemblerChecker(object):
         ### then use the coe to assemble stuff
         binaryIndex = 0
         if codeOk:
-            labelDict = {}
             ### use pseudocode to interprete and convert to binary
-            for lineNumber, lineType, key, line in pseudocode:
-                func = self.assemblyDict.get(lineType)
-                if func:
-                    binary, binaryIndex, labelDict = func(self, binary=binary, binaryIndex=binaryIndex, labels=labelDict, lineNumber=lineNumber, lineType=lineType, key=key, line=line)
-                    #print(line)
-                    #print(binary[:binaryIndex])
-                    #print(labelDict)  
+            binary, binaryIndex, labelDict = self.assembleLines(pseudocode, binary=binary, binaryIndex=binaryIndex)
         return success and codeOk, errors, binary, binaryIndex
+
+    def assembleLines(self, pseudocode, binary=DEFAULT_ROM(), binaryIndex=0, labels={}, lineNumber=0, lineType=None, key=None, line=None):
+        labelDict = {}
+        for lineNumber, lineType, key, line in pseudocode:
+            binary, binaryIndex, labelDict = self.assembleLine(binary=binary, binaryIndex=binaryIndex, labels=labels, lineNumber=lineNumber, lineType=lineType, key=key, line=line)
+        return binary, binaryIndex, labelDict
+    
+    def assembleLine(self, binary=DEFAULT_ROM(), binaryIndex=0, labels={}, lineNumber=0, lineType=None, key=None, line=None):
+        func = self.assemblyDict.get(lineType)
+        if func:
+            binary, binaryIndex, labels = func(self, binary=binary, binaryIndex=binaryIndex, labels=labels, lineNumber=lineNumber, lineType=lineType, key=key, line=line)
+        return binary, binaryIndex, labels
 
     def checkCode(self, text):
         success = True
@@ -109,12 +123,19 @@ class AssemblerChecker(object):
                 if line.strip():
                     lType, lKey = self.checkLine(line)
                     if lType == AssemblerChecker.LINETYPE.UNKNOWN or lKey == None:
-                        success = False
                         errors.append((i+1, lType, lKey, line))
                     else:
-                        ### append to our pseudo code
-                        pseudocode.append((i+1, lType, lKey, line))
+                        ### assemble lines to see if it's actually working code
+                        try:
+                            binary, binaryIndex, labels = self.assembleLine(lineNumber=i+1, lineType=lType, key=lKey, line=line)
+                        except Exception as e:
+                            pass
+                            errors.append((i+1, lType, lKey, line))
+                        else:
+                            ### append to our pseudo code
+                            pseudocode.append((i+1, lType, lKey, line))
         ### return
+        success = len(errors) == 0
         return success, errors, pseudocode
 
     def checkLine(self, line):
@@ -142,12 +163,20 @@ class AssemblerChecker(object):
             binaryIndex += 1
         if args:
             for arg in args:
-                if "0x" in arg:
-                    ### convert value hex string (see if its valid)
-                    value = int(arg, 16)
-                else:
-                    ### convert value int
-                    value = int(arg)
+                try:
+                    ### check if arg is a label
+                    if arg in labels:
+                        ### binaryindex of the label is used as arg
+                        value = labels[arg]
+                    ### process arg as some value
+                    elif "0x" in arg:
+                        ### convert value hex string (see if its valid)
+                        value = int(arg, 16)
+                    else:
+                        ### convert value int
+                        value = int(arg)
+                except Exception as e:
+                    raise e
                 binary[binaryIndex] = value
                 binaryIndex += 1
         return binary, binaryIndex, labels
@@ -268,7 +297,7 @@ def testCheckLine(checker, code):
 
 def main():
     checker = AssemblerChecker()
-    code = "$ABC = 7\n #0x0000 \n .255 \n #0x0004 \n .0xAA \n #0x0002 \n .0xA0 \n .0xA1 \n #0x000F \n main: \n // I AM SOME COMMENT \n LDA ${ABC} \n  LDA 3"
+    code = "$ABC = 7\n #0x0000 \n .255 \n #0x0004 \n .0xAA \n #0x0002 \n .0xA0 \n .0xA1 \n #0x000F \n main: \n // I AM SOME COMMENT \n LDA ${ABC} \n  LDA 3 \n jmp main"
     ### test1
     testCheckLine(checker, code)
     ### test2
