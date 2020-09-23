@@ -28,20 +28,31 @@ segmentMatrix = {
     "e": [72,63,54,45,36],
     "f": [36,27,18,9,0],
     "g": [36,37,38,39,40,41,42,43,44],
+    "dp":[81]
 }
 
+N = None
 byteDigits = { 
-    0: (0x7e, ["a","b","c","d","e","f"]), 
-    1: (0x30, ["b","c"]), 
-    2: (0x6d, ["a","b","g","e","d"]), 
-    3: (0x79, ["a","b","c","d","g"]), 
-    4: (0x33, ["f","g","b","c"]), 
-    5: (0x5b, ["a","f","g","c","d"]), 
-    6: (0x5f, ["a","c","d","e","f", "g"]), 
-    7: (0x70, ["a","b","c"]), 
-    8: (0x7f, ["a","b","c","d","e","f","g"]), 
-    9: (0x7b, ["a","b","c","d","f","g"]), 
-};
+    0: [N, "a","b","c","d","e","f",N],  ### DP,a,b,c,d,e,f,g
+    1: [N, N, "b","c", N, N, N, N],     ### where DP is highest bit, and g is lowest
+    2: [N, "a","b", N, "d", "e", N, "g"], 
+    3: [N, "a","b","c","d", N, N, "g"], 
+    4: [N, "b","c", N, N, "f","g"], 
+    5: [N, "a", N, "c", "d", N, "f","g"], 
+    6: [N, "a", N, "c","d","e","f","g"], 
+    7: [N, "a","b","c", N, N, N, N], 
+    8: [N, "a","b","c","d","e","f","g"], 
+    9: [N, "a","b","c","d", N, "f","g"], 
+}
+
+def digitToByte(digit):
+    lines = byteDigits[digit]
+    byte = 0
+    for l in lines:
+        bit = 1 if l else 0
+        byte = (byte << 1) + bit
+    #print(">>> %s" % format(byte, '#010b'))
+    return byte
 
 
 
@@ -57,21 +68,18 @@ def digitToMatrix(decimal):
         0, 0, 0, 0, 0, 0, 0, 0, 0,  ### 54 ... 62
         0, 0, 0, 0, 0, 0, 0, 0, 0,  ### 63 ... 71
         0, 0, 0, 0, 0, 0, 0, 0, 0,  ### 72 ... 80
+        0,                          ### 81 = DecimalPoint
     ]
     value, segments = byteDigits[decimal]
     for segment in segments:
-        pixels = segmentMatrix[segment]
-        for pixel in pixels:
-            dotmatrix[pixel] = 1
+        if segment:
+            pixels = segmentMatrix[segment]
+            for pixel in pixels:
+                dotmatrix[pixel] = 1
     return dotmatrix
 
 def printDigit(decimal):
     dotmatrix = digitToMatrix(decimal)
-    #for i,v in enumerate(dotmatrix):
-    #    if i>0 and i % 9 == 0:
-    #        print("")
-    #    print(v, end='')
-    ### print the result
     for i,pixel in enumerate(dotmatrix):
         if i % 9 == 0:
             print("\n", end='')
@@ -79,21 +87,16 @@ def printDigit(decimal):
         print(string, end='')
     print("")
 
-def getDigitFromBinary(b):
-    for k,v in byteDigits.items():
-        byte, segments = v
-        if b == byte:
-            return k
-
 
 ##############################################################################################
 
 binary = []
 print("Writing ones place")
 for value in range(0, 256):
-    hexbin, segments = byteDigits[value % 10]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin)
+    digit = value % 10
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 ### test if the segments are correct in our memory
 #for byte in binary:
@@ -103,15 +106,17 @@ for value in range(0, 256):
 ### write the rest
 print("\nWriting tens place")
 for value in range(0, 256):
-    hexbin, segments = byteDigits[int(value / 10) % 10]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin)
+    digit = int(value / 10) % 10
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 print("\nWriting hundreds place")
 for value in range(0, 256):
-    hexbin, segments = byteDigits[int(value / 100) % 10]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin)
+    digit = int(value / 100) % 10
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 print("\nWriting sign")
 for value in range(0, 256):
@@ -119,23 +124,28 @@ for value in range(0, 256):
     print(negative, end=", ")
     binary.append(negative)
 
+print(len(binary))
+
 print("\nWriting ones place (twos complement)")
 for value in range(-128, 128):
-    hexbin, segments =  byteDigits[int(abs(value) % 10)]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin)
+    digit = int(abs(value) % 10)
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 print("\nWriting tens place (twos complement)")
 for value in range(-128, 128):
-    hexbin, segments =  byteDigits[int(abs(value / 10) % 10)]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin)
+    digit = int(abs(value / 10) % 10)
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 print("\nWriting hundreds place (twos complement)")
 for value in range(-128, 128):
-    hexbin, segments =  byteDigits[int(abs(value / 100) % 10)]
-    print(getDigitFromBinary(hexbin), end=", ")
-    binary.append(hexbin) 
+    digit = int(abs(value / 100) % 10)
+    binVal = digitToByte(digit)
+    print(digit, end=", ")
+    binary.append(binVal)
 
 print("\nWriting sign (twos complement)")
 for value in range(-128, 128):
@@ -154,3 +164,20 @@ with open(path, "wb") as f:
     f.write(byteArr)
 print("Binary file written [%s bytes]" % len(byteArr))
 print("\n")
+
+
+### this should be the binary value for the digits 
+### when 
+### << DP,a,b,c,d,e,f,g >> is used
+### where DP is highest bit, and g is lowest
+###
+### 0: 0x7e
+### 1: 0x30
+### 2: 0x6d
+### 3: 0x79
+### 4: 0x33
+### 5: 0x5b
+### 6: 0x5f
+### 7: 0x70 
+### 8: 0x7f
+### 9: 0x7b
