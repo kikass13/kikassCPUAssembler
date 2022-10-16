@@ -28,7 +28,7 @@ exportTypes = {
 class AssemblerGui(object):
     def __init__(self):
         ### create necessary utilities
-        self.checker = AssemblerChecker()
+        self.checker = AssemblerChecker(self.loadInstructionSet())
         ### create the main window
         self.root = tk.Tk()
         self.root.title("My CPU Assembler")
@@ -106,33 +106,37 @@ class AssemblerGui(object):
     def run(self):
         self.root.mainloop()
 
-    def onCpuInfoClicked(self):
+    def loadInstructionSet(self):
+        d = None
         ### load instruction set info
         currentDir = os.path.dirname(__file__)
         filename = "instruction_set.yml"
         path = os.path.join(currentDir, filename)
-        d = None
         with open(path, 'r') as stream:
             try:
                 d = yaml.safe_load(stream)
             except yaml.YAMLError as e:
-                raise e
-        if not d:
-            return
+                print(e)
+        return d
 
+    def onCpuInfoClicked(self):
+        d = self.checker.getInstructionSet()
         ### read data and interprete table entries
-        instructions = d["instructions"]
-        headers = list(instructions[0].keys()) ### grab first element and get our headers
+        firstEntry = next(iter(d.values()))
+        headers = ["command"] + list(firstEntry.keys()) ### grab first element and get our headers
         contents = [headers]
-        rows = len(instructions)
+        rows = len(d)
         columns = len(headers)
-        for i in instructions:
+        for i, data in d.items():
             l = []
             for k in headers:
-                l.append(i[k])
+                if k == "command":
+                    l.append(i)
+                else:
+                    l.append(data[k])
             contents.append(l)
 
-        showRows = 10 ### only so much rows will be shown before scrolling is necessary
+        showRows = min(15,rows)  ### only so much rows will be shown before scrolling is necessary
 
         ### open popup window
         win = tk.Toplevel()
@@ -197,8 +201,10 @@ class AssemblerGui(object):
         # Set the canvas scrolling region
         canvas.config(scrollregion=canvas.bbox("all"))
         ### other stuff
+        b = tk.Label(frame_main, text="")
+        b.grid(row=11, column=0, sticky="we")
         b = tk.Button(frame_main, text="Close", bd=6, command=win.destroy)
-        b.grid(row=10, column=0, sticky="we")
+        b.grid(row=12, column=0, sticky="we")
 
 
     def onLoadClicked(self):

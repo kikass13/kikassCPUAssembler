@@ -1,100 +1,25 @@
---- 
-instructions: 
-  - 
-    opcode: "0x00"
-    command: "nop"
-    args: "0"
-    parameters: ""
-    description: "perform no-operation"
-    tasks: "nothing"
-  - 
-    opcode: "0x01"
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: "0x01"
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  - 
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
-  -
-    opcode: ""
-    command: ""
-    args: "0"
-    parameters: ""
-    description: ""
-    tasks: ""
+instructions:
+    nop:
+        opcode: 0x00
+        args: 0
+        parameters: ""
+        description: perform no-operation
+        tasks: ""
+    lda:
+        opcode: 0x0c
+        args: 1
+        parameters: <const int>
+        description: Load <const int> into A
+        tasks: A = <const int>
+    jmp:
+        opcode: 0xf0
+        args: 1
+        parameters: <address>
+        description: Jump to <address>
+        tasks: PC = <address>
+    jmp2:
+        opcode: 0xf0
+        args: 1
+        parameters: <address>
+        description: Jump to <address>
+        tasks: PC = <address>

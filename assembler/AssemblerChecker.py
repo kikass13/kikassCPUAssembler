@@ -35,27 +35,26 @@ class AssemblerChecker(object):
         LINETYPE.COMMENT:           lambda self, **kwargs: self.assembleComment(**kwargs),
     }
 
-    cmdDict = {
-        "lda":     {
-                    "Id": "3", 
-                    "Opcode": "0x0C", 
-                    "Args": "1",
-                    "Parameters": "<const int>",
-                    "Description": "",
-                    "Tasks": "",
-                },
-        "jmp":     {
-                    "Id": "200", 
-                    "Opcode": "0xF0", 
-                    "Args": "1",
-                    "Parameters": "<address>",
-                    "Description": "Jump to <address>",
-                    "Tasks": "PC = <address>",
-                },
+    instructionSet = {
+        "nop": {
+            "Opcode": "0x00", 
+            "Args": "0",
+            "Parameters": "",
+            "Description": "perform no-operation",
+            "Tasks": "",
+        },
     }
 
-    def __init__(self):
-        pass
+    def __init__(self, instructionSetDict = {}):
+        if(instructionSetDict):
+            instructions = instructionSetDict.get("instructions", None)
+            if instructions:
+                for k,v in instructions.items():
+                    instruction = {k: v}
+                    self.instructionSet.update(instruction)
+
+    def getInstructionSet(self):
+        return self.instructionSet
 
     def assemble(self, text):
         success = True
@@ -130,7 +129,7 @@ class AssemblerChecker(object):
                             binary, binaryIndex, labels = self.assembleLine(lineNumber=i+1, lineType=lType, key=lKey, line=line)
                         except Exception as e:
                             pass
-                            errors.append((i+1, lType, lKey, line))
+                            errors.append((i+1, lType, lKey, line, e))
                         else:
                             ### append to our pseudo code
                             pseudocode.append((i+1, lType, lKey, line))
@@ -156,10 +155,10 @@ class AssemblerChecker(object):
         cmd = key.get("cmd", None)
         op = key.get("op", None)
         args = key.get("args", None)
-
+        if isinstance(op, str):
+            op = int(op, 16)
         if cmd and op:
-            opHex = int(op, 16)
-            binary[binaryIndex] = opHex
+            binary[binaryIndex] = op
             binaryIndex += 1
         if args:
             for arg in args:
@@ -209,9 +208,9 @@ class AssemblerChecker(object):
         stuff = line.split(" ")
         cmd = stuff[0].lower()
         args = stuff[1:]
-        d = self.cmdDict.get(cmd, None)
+        d = self.instructionSet.get(cmd, None)
         if d:
-            code = {"cmd": cmd, "op": d["Opcode"], "args": args}
+            code = {"cmd": cmd, "op": d["opcode"], "args": args}
         return code
 
     def isLabel(self, line):
@@ -296,7 +295,33 @@ def testCheckLine(checker, code):
     print("======================================\n")
 
 def main():
-    checker = AssemblerChecker()
+    d = {
+        "instructions": {
+            "nop": {
+                "opcode": 0x00,
+                "args": 0,
+                "parameters": "",
+                "description": "perform no-operation",
+                "tasks": "",
+            },
+            "lda": {
+                "opcode": 0x0c,
+                "args": 1,
+                "parameters": "<const int>",
+                "description": "Load <const int> into A",
+                "tasks": "A = <const int>",
+            },
+            "jmp": {
+                "opcode": 0xf0,
+                "args": 1,
+                "parameters": "<address>",
+                "description": "Jump to <address>",
+                "tasks": "PC = <address>",
+            },
+        }
+    }
+
+    checker = AssemblerChecker(d)
     code = "$ABC = 7\n #0x0000 \n .255 \n #0x0004 \n .0xAA \n #0x0002 \n .0xA0 \n .0xA1 \n #0x000F \n main: \n // I AM SOME COMMENT \n LDA ${ABC} \n  LDA 3 \n jmp main"
     ### test1
     testCheckLine(checker, code)
