@@ -239,7 +239,7 @@ class AssemblerGui(object):
         print(pseudocode)
         ### do stuff with the errors and shit ...
         for error in errors:
-            lineNumber, lineType, lineKey, code = error
+            lineNumber, lineType, lineKey, code, py = error
             startIndex, endIndex = self.getLineIndex(lineNumber)
             self.markErrorText("", startIndex, endIndex)
 

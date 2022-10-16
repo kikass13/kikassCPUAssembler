@@ -112,7 +112,7 @@ class AssemblerChecker(object):
                     newLine = "%s%s%s" % (newLine[:left], possibleSymbolVal ,newLine[right+1:])
                 else:
                     success = False
-                    errors.append((i, AssemblerChecker.LINETYPE.SYMBOLDEF, possibleSymbolRef, line))
+                    errors.append((i, AssemblerChecker.LINETYPE.SYMBOLDEF, possibleSymbolRef, line, None))
             symbolReplacesLines.append(newLine)
         #########################################################################################
         if success:
@@ -122,7 +122,7 @@ class AssemblerChecker(object):
                 if line.strip():
                     lType, lKey = self.checkLine(line)
                     if lType == AssemblerChecker.LINETYPE.UNKNOWN or lKey == None:
-                        errors.append((i+1, lType, lKey, line))
+                        errors.append((i+1, lType, lKey, line, None))
                     else:
                         ### assemble lines to see if it's actually working code
                         try:
@@ -205,7 +205,7 @@ class AssemblerChecker(object):
     def isCode(self, line):
         code = None
         ### check if current line is a label for code
-        stuff = line.split(" ")
+        stuff = line.strip().split(" ")
         cmd = stuff[0].lower()
         args = stuff[1:]
         d = self.instructionSet.get(cmd, None)
